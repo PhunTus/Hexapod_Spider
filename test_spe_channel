@@ -1,0 +1,54 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+#define SERVO_MIN  100   // xung nhỏ nhất (0°)
+#define SERVO_MAX  500   // xung lớn nhất (180°)
+
+// Chọn kênh cần test
+int testChannel = 9; // Thay số này bằng kênh bạn muốn
+
+// Chuyển góc sang xung PWM
+uint16_t angleToPulse(int ang) {
+  return map(ang, 0, 180, SERVO_MIN, SERVO_MAX);
+}
+
+// Set góc servo
+void setServoAngle(uint8_t channel, int angle) {
+  pwm.setPWM(channel, 0, angleToPulse(angle));
+}
+
+// Tắt servo
+void stopServo(uint8_t channel) {
+  pwm.setPWM(channel, 0, 0);
+}
+
+void setup() {
+  Serial.begin(9600);
+  pwm.begin();
+  pwm.setPWMFreq(50);
+
+  // Tắt tất cả các kênh khác
+  for (int ch = 0; ch < 16; ch++) {
+    if (ch != testChannel) stopServo(ch);
+  }
+
+  delay(500);
+}
+
+void loop() {
+  Serial.print("Testing channel: "); Serial.println(testChannel);
+
+  setServoAngle(testChannel, 90); // Giữa
+  delay(1000);
+  setServoAngle(testChannel, 60); // Trái
+  delay(1000);
+  setServoAngle(testChannel, 120); // Phải
+  delay(1000);
+  setServoAngle(testChannel, 90); // Về giữa
+  delay(1000);
+
+  // Nếu muốn tắt hẳn kênh sau khi test thì bật dòng dưới
+  // stopServo(testChannel); delay(2000);
+}
