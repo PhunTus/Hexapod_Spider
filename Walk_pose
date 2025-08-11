@@ -1,0 +1,89 @@
+#include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
+
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+
+// Giới hạn xung PWM cho servo (điều chỉnh nếu cần)
+#define SERVO_MIN  100
+#define SERVO_MAX  500
+
+// Cấu hình chân servo (base, thigh, calf)
+int chanServo[4][3] = {
+  {1, 2, 3},     // Chân 0
+  {5, 6, 7},     // Chân 1
+  {9, 10, 11},   // Chân 2
+  {13, 14, 15}   // Chân 3
+};
+
+// Chuyển góc sang xung
+uint16_t angleToPulse(int ang) {
+  return map(ang, 0, 180, SERVO_MIN, SERVO_MAX);
+}
+
+// Di chuyển servo từ từ
+void smoothMove(int chan, int target, int stepDelay) {
+  int current = 90; // mặc định ban đầu ở 90
+  static int pos[16] = {90}; // lưu vị trí hiện tại của từng kênh
+
+  current = pos[chan];
+  if (target > current) {
+    for (int a = current; a <= target; a++) {
+      pwm.setPWM(chan, 0, angleToPulse(a));
+      delay(stepDelay);
+    }
+  } else {
+    for (int a = current; a >= target; a--) {
+      pwm.setPWM(chan, 0, angleToPulse(a));
+      delay(stepDelay);
+    }
+  }
+  pos[chan] = target;
+}
+
+// Di chuyển cả một chân
+void moveLegSmooth(int leg, int base, int thigh, int calf, int stepDelay) {
+  smoothMove(chanServo[leg][0], base, stepDelay);
+  smoothMove(chanServo[leg][1], thigh, stepDelay);
+  smoothMove(chanServo[leg][2], calf, stepDelay);
+}
+
+// Tư thế đứng
+void poseStand() {
+  for (int i = 0; i < 4; i++) {
+    moveLegSmooth(i, 90, 90, 90, 5);
+  }
+}
+
+// Bước nhỏ 1 chân
+void smallStepLeg(int leg) {
+  // Nhấc chân
+  smoothMove(chanServo[leg][1], 80, 5); // thigh lên
+  smoothMove(chanServo[leg][2], 80, 5); // calf lên
+
+  // Base xoay nhẹ +5°
+  smoothMove(chanServo[leg][0], 95, 5);
+
+  // Hạ chân xuống
+  smoothMove(chanServo[leg][1], 90, 5);
+  smoothMove(chanServo[leg][2], 90, 5);
+
+  // Base trả lại
+  smoothMove(chanServo[leg][0], 90, 5);
+}
+
+void setup() {
+  Serial.begin(9600);
+  pwm.begin();
+  pwm.setPWMFreq(50);
+  delay(500);
+
+  poseStand();
+  delay(1000);
+}
+
+void loop() {
+  smallStepLeg(0);
+  smallStepLeg(2);
+  smallStepLeg(1);
+  smallStepLeg(3);
+}
